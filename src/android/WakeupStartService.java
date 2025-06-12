@@ -103,7 +103,7 @@ public class WakeupStartService extends Service {
     private ExoPlayer radioPlayer;
 
     // player event listener
-    private ExoPlayer.Listener playerEventListener;
+    private androidx.media3.common.Player.Listener playerEventListener;
 
     // current player state
     private RadioPlayerState radioPlayerState = RadioPlayerState.IDLE;
@@ -422,7 +422,7 @@ public class WakeupStartService extends Service {
 
         log("Starting radio player");
 
-        this.playerEventListener = playerEventListener = new ExoPlayer.Listener() {
+        this.playerEventListener = playerEventListener = new androidx.media3.common.Player.Listener() {
             @Override
             public void onPlayerError(PlaybackException error) {
                 WakeupStartService.this.releaseRadioPlayer();
@@ -432,7 +432,7 @@ public class WakeupStartService extends Service {
 
             @Override
             public void onPlaybackStateChanged(int playbackState) {
-                if (playbackState == ExoPlayer.STATE_IDLE && WakeupStartService.this.radioPlayerState == RadioPlayerState.PLAYING) {
+                if (playbackState == androidx.media3.common.Player.STATE_IDLE && WakeupStartService.this.radioPlayerState == RadioPlayerState.PLAYING) {
                     // Player.STATE_IDLE: This is the initial state, the state when the player is stopped, and when playback failed.
                     WakeupStartService.this.log("Player state changed. Stopped");
                     WakeupStartService.this.releaseRadioPlayer();
@@ -446,7 +446,7 @@ public class WakeupStartService extends Service {
             public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
                 if (
                     playWhenReady
-                    && reason == ExoPlayer.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST
+                    && reason == androidx.media3.common.Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST
                     && WakeupStartService.this.radioPlayerState != RadioPlayerState.PLAYING
                 ) {
                     // The player is only playing if the state is Player.STATE_READY and playWhenReady=true
@@ -464,15 +464,17 @@ public class WakeupStartService extends Service {
                     ? C.USAGE_ALARM
                     : C.USAGE_MEDIA;
 
+                DefaultHttpDataSource.Factory httpDataSourceFactory = new DefaultHttpDataSource.Factory()
+                    .setUserAgent("CordovaWakeupPlugin");
+
                 DataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(
                     WakeupStartService.this.getApplicationContext(),
-                    new DefaultHttpDataSource.Factory()
-                        .setUserAgent("CordovaWakeupPlugin")
+                    httpDataSourceFactory
                 );
 
                 ExtractorsFactory extractorsFactory = new DefaultExtractorsFactory();
 
-                WakeupStartService.this.radioPlayer = new ExoPlayer.Builder(WakeupStartService.this.getApplicationContext())
+                WakeupStartService.this.radioPlayer = new androidx.media3.exoplayer.ExoPlayer.Builder(WakeupStartService.this.getApplicationContext())
                     .setLooper(getRequestHandler().getLooper())
                     .setMediaSourceFactory(
                         new DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
@@ -487,13 +489,7 @@ public class WakeupStartService extends Service {
                     .build();
 
                 // Per MediaItem settings.
-                MediaItem mediaItem = new MediaItem.Builder()
-                    .setUri(Uri.parse(WakeupStartService.this.streamingUrl))
-                    .setLiveConfiguration(
-                        new MediaItem.LiveConfiguration.Builder()
-                            .build()
-                    )
-                    .build();
+                MediaItem mediaItem = MediaItem.fromUri(Uri.parse(WakeupStartService.this.streamingUrl));
 
                 WakeupStartService.this.radioPlayer.setMediaItem(mediaItem);
                 WakeupStartService.this.radioPlayer.addListener(WakeupStartService.this.playerEventListener);
